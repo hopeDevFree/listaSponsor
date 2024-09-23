@@ -9,6 +9,8 @@ import psycopg2
 from dotenv import load_dotenv
 import os
 
+from keep_alive import keep_alive
+
 load_dotenv()
 
 app = Client(name="SponsorLVB", api_id=os.environ["api_id"], api_hash=os.environ["api_hash"],
@@ -184,5 +186,5 @@ scheduler = AsyncIOScheduler(timezone="Europe/Rome")
 scheduler.add_job(send_list_message, "cron", day=1, hour=18, minute=0)
 scheduler.add_job(delete_list_message, "cron", day=2, hour=18, minute=0)
 scheduler.start()
-
+keep_alive()
 app.run()

@@ -3,3 +3,4 @@ psycopg2
 tgcrypto
 python-dotenv
 apscheduler
+flask
