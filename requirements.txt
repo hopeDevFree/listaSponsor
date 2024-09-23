@@ -1,0 +1,5 @@
+git+https://github.com/KurimuzonAkuma/pyrogram.git@v2.1.17
+psycopg2
+tgcrypto
+python-dotenv
+apscheduler
