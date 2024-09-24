@@ -1,11 +1,12 @@
 import re
 
+import psycopg2
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 import tgcrypto
-import psycopg2
+from psycopg2 import pool
 from dotenv import load_dotenv
 import os
 
@@ -16,15 +17,19 @@ load_dotenv()
 app = Client(name="SponsorLVB", api_id=os.environ["api_id"], api_hash=os.environ["api_hash"],
              bot_token=os.environ["bot_token"])
 
-conn = psycopg2.connect(database=os.environ["db_name"],
-                        host=os.environ["db_host"],
-                        user=os.environ["db_user"],
-                        password=os.environ["db_password"],
-                        port=os.environ["db_port"])
+connection_pool = psycopg2.pool.SimpleConnectionPool(1, 20,
+                                                     database=os.environ["db_name"],
+                                                     host=os.environ["db_host"],
+                                                     user=os.environ["db_user"],
+                                                     password=os.environ["db_password"],
+                                                     port=os.environ["db_port"]
+                                                     )
 
 
 @app.on_message(filters.command('start') & filters.private)
 async def start_command(app, message):
+    conn = connection_pool.getconn()
+
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE id=%s", (message.from_user.id,))
     if cur.fetchone() is None:
@@ -46,10 +51,13 @@ async def start_command(app, message):
             disable_web_page_preview=True)
 
     conn.commit()
+    connection_pool.putconn(conn)
 
 
 @app.on_callback_query()
 async def callback_query(app, callbackQuery):
+    conn = connection_pool.getconn()
+
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE id=%s", (callbackQuery.from_user.id,))
     user = cur.fetchone()
@@ -115,11 +123,14 @@ async def callback_query(app, callbackQuery):
         )
 
     conn.commit()
+    connection_pool.putconn(conn)
 
 
 # Check passaggi singup
 @app.on_message(filters.private)
 async def signupChannel(app, message):
+    conn = connection_pool.getconn()
+
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE id=%s", (message.from_user.id,))
     user = cur.fetchone()
@@ -146,9 +157,12 @@ Verrà inoltrata il <b>primo</b> giorno di ogni mese alle 18:00.</i>""",
             disable_web_page_preview=False)
 
     conn.commit()
+    connection_pool.putconn(conn)
 
 
 async def send_list_message():
+    conn = connection_pool.getconn()
+
     cur = conn.cursor()
     cur.execute("SELECT * FROM list")
     list_obj = cur.fetchone()
@@ -166,9 +180,12 @@ async def send_list_message():
         cur.execute("INSERT INTO channels_message(username, id_message) values(%s, %s)", (channel, copied_message.id))
 
     conn.commit()
+    connection_pool.putconn(conn)
 
 
 async def delete_list_message():
+    conn = connection_pool.getconn()
+
     cur = conn.cursor()
     cur.execute("SELECT * FROM channels_message")
     list_objs = cur.fetchall()
@@ -180,6 +197,7 @@ async def delete_list_message():
         cur.execute("DELETE FROM channels_message WHERE username=%s", (channel[0],))
 
     conn.commit()
+    connection_pool.putconn(conn)
 
 
 scheduler = AsyncIOScheduler(timezone="Europe/Rome")
