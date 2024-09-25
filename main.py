@@ -35,7 +35,7 @@ async def start_command(app, message):
 
             base_buttons_list = [[InlineKeyboardButton('Registra canali ✏️', callback_data="channelSU/0")]]
 
-            if message.from_user.id == 793550967 or message.from_user.id == 5453376840:
+            if message.from_user.id == 793550967 or message.from_user.id == 5453376840 or message.from_user.id == 2026217675:
                 welcome_text = """👷🏻 <i>Ciao admin!     
         
 👇🏻 Digita i pulsanti sotto per effettuare l'operazione che preferisci!</i>"""
