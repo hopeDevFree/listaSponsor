@@ -109,7 +109,8 @@ async def callback_query(app, callbackQuery):
                 await app.send_message(
                     chat_id=callbackQuery.from_user.id,
                     text="<i>👁️ Ecco la lista attuale:\n\n" + list_obj[1],
-                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Home', callback_data='menu')]])
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Home', callback_data='menu')]]),
+                    disable_web_page_preview=True
                 )
 
             if callbackQuery.data == "seeChannels":
@@ -194,8 +195,9 @@ async def send_list_message():
             for channel in channels:
                 sent_message = await app.send_message(
                     chat_id=channel[0],
-                    text=list_obj[1], reply_markup=InlineKeyboardMarkup(standard_buttons)
-
+                    text=list_obj[1],
+                    reply_markup=InlineKeyboardMarkup(standard_buttons),
+                    disable_web_page_preview=True
                 )
                 cur.execute("INSERT INTO channels_message(username, id_message) values(%s, %s)",
                             (channel, sent_message.id))
