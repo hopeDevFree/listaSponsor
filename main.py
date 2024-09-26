@@ -1,10 +1,12 @@
-import re
+import asyncio
 from contextlib import closing
 
 import psycopg2
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ChatMemberStatus
+from pyrogram.errors import ChannelPrivate
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ChatMemberUpdated
 
 import tgcrypto
 from dotenv import load_dotenv
@@ -16,6 +18,11 @@ load_dotenv()
 
 app = Client(name="SponsorLVB", api_id=os.environ["api_id"], api_hash=os.environ["api_hash"],
              bot_token=os.environ["bot_token"])
+
+standard_buttons = [
+    [InlineKeyboardButton('👀 SCOPRI ALTRI CANALI 👀', url="T.ME/LVBNET")],
+    [InlineKeyboardButton('✅ AGGIUNGI IL TUO CANALE✅', callback_data="t.me/LVBnetStaffbot")]
+]
 
 
 @app.on_message(filters.command('start') & filters.private)
@@ -35,13 +42,13 @@ async def start_command(app, message):
 
             base_buttons_list = [[InlineKeyboardButton('Registra canali ✏️', callback_data="channelSU/0")]]
 
-            if message.from_user.id == 793550967 or message.from_user.id == 5453376840 or message.from_user.id == 2026217675:
+            if message.from_user.id == 793550967 or message.from_user.id == 5453376840:
                 welcome_text = """👷🏻 <i>Ciao admin!     
         
 👇🏻 Digita i pulsanti sotto per effettuare l'operazione che preferisci!</i>"""
 
-                base_buttons_list.append([InlineKeyboardButton("Canali registrati 👁️", callback_data="allChannels"),
-                                          InlineKeyboardButton("Preview lista 📄", callback_data="previewList")])
+                base_buttons_list.append([InlineKeyboardButton("Preview lista 📄", callback_data="previewList"),
+                                          InlineKeyboardButton("Vedi canali 📣", callback_data="seeChannels")])
 
                 await message.reply(
                     text=welcome_text,
@@ -76,8 +83,8 @@ async def callback_query(app, callbackQuery):
         
 👇🏻 Digita i pulsanti sotto per effettuare l'operazione che preferisci!</i>"""
 
-                    base_buttons_list.append([InlineKeyboardButton("Canali registrati 👁️", callback_data="allChannels"),
-                                              InlineKeyboardButton("Preview lista 📄", callback_data="previewList")])
+                    base_buttons_list.append([InlineKeyboardButton("Preview lista 📄", callback_data="previewList"),
+                                              InlineKeyboardButton("Vedi canali 📣", callback_data="seeChannels")])
 
                     await callbackQuery.edit_message_text(
                         text=welcome_text,
@@ -99,28 +106,33 @@ async def callback_query(app, callbackQuery):
                                 ("pass0", callbackQuery.message.id, user[0],))
 
             if callbackQuery.data == "previewList":
-                await app.send_message(chat_id=callbackQuery.from_user.id,
-                                       text=f"""<i>👁️ Ecco la lista attuale:""")
-
-                await app.copy_message(
+                await app.send_message(
                     chat_id=callbackQuery.from_user.id,
-                    from_chat_id=callbackQuery.from_user.id,
-                    message_id=list_obj[0],
+                    text="<i>👁️ Ecco la lista attuale:\n\n" + list_obj[1],
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Home', callback_data='menu')]])
                 )
 
-            if callbackQuery.data == "allChannels":
-                pattern = r'@\S+'
+            if callbackQuery.data == "seeChannels":
+                cur.execute("SELECT * FROM channels")
+                channels = cur.fetchall()
 
-                match = re.findall(pattern, list_obj[1])
+                canali_text = "<i>📣 Questi sono i canali in cui verrà inviata la lista e che hanno aggiunto il bot:</i>\n\n"
 
-                channels_text = "➕ Questi sono i canali presenti nella lista:\n\n"
-                for channel in match:
-                    channels_text = channels_text + f"- {channel}\n"
+                if channels:
+                    for channel in channels:
+                        try:
+                            channel_get = await app.get_chat(channel[0])
+                            canali_text = canali_text + "- " + channel_get.title + "\n"
 
+                        except ChannelPrivate:
+                            cur.execute("DELETE FROM channels WHERE id = %s", (channel[0],))
+                            print("Il canale/supergruppo è privato e non accessibile.")
+
+                else:
+                    canali_text = "<i>❌ Il bot non è stato aggiunto in nessun canale.</i>"
                 await app.send_message(
                     chat_id=callbackQuery.from_user.id,
-                    text=channels_text,
+                    text=canali_text,
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Home', callback_data='menu')]])
                 )
 
@@ -175,21 +187,20 @@ async def send_list_message():
             port=os.environ["db_port"]
     )) as conn:
         with conn.cursor() as cur:
+            cur.execute("SELECT * FROM channels")
+            channels = cur.fetchall()
             cur.execute("SELECT * FROM list")
             list_obj = cur.fetchone()
+            for channel in channels:
+                sent_message = await app.send_message(
+                    chat_id=channel[0],
+                    text=list_obj[1], reply_markup=InlineKeyboardMarkup(standard_buttons)
 
-            pattern = r'@\S+'
-
-            match = re.findall(pattern, list_obj[1])
-
-            for channel in match:
-                copied_message = await app.copy_message(
-                    chat_id=channel,
-                    from_chat_id=793550967,
-                    message_id=list_obj[0]
                 )
                 cur.execute("INSERT INTO channels_message(username, id_message) values(%s, %s)",
-                            (channel, copied_message.id))
+                            (channel, sent_message.id))
+
+                await asyncio.sleep(10)
 
             conn.commit()
 
@@ -211,6 +222,40 @@ async def delete_list_message():
                     chat_id=channel[0],
                     message_ids=channel[1])
                 cur.execute("DELETE FROM channels_message WHERE username=%s", (channel[0],))
+
+            conn.commit()
+
+
+@app.on_chat_member_updated()
+async def handle_chat_member_update(client: Client, chat_member_updated: ChatMemberUpdated):
+    chat_id = chat_member_updated.chat.id
+    new_member = chat_member_updated.new_chat_member
+    old_member = chat_member_updated.old_chat_member
+
+    with closing(psycopg2.connect(
+            database=os.environ["db_name"],
+            host=os.environ["db_host"],
+            user=os.environ["db_user"],
+            password=os.environ["db_password"],
+            port=os.environ["db_port"]
+    )) as conn:
+        with conn.cursor() as cur:
+            if new_member is not None:
+                if new_member.user.id == 7353195821:
+
+                    cur.execute("SELECT * FROM channels WHERE id = %s", (chat_id,))
+                    channel_obj = cur.fetchone()
+
+                    if channel_obj is None:
+                        if new_member.status == ChatMemberStatus.ADMINISTRATOR:
+                            cur.execute("INSERT INTO channels(id) values(%s)", (chat_id,))
+                    else:
+                        if new_member.status == ChatMemberStatus.BANNED:
+                            cur.execute("DELETE FROM channels WHERE id=%s", (chat_id,))
+
+            else:
+                if old_member is not None and old_member.user.id == 7353195821:
+                    cur.execute("DELETE FROM channels WHERE id=%s", (chat_id,))
 
             conn.commit()
 
