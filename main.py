@@ -21,7 +21,7 @@ app = Client(name="SponsorLVB", api_id=os.environ["api_id"], api_hash=os.environ
 
 standard_buttons = [
     [InlineKeyboardButton('👀 SCOPRI ALTRI CANALI 👀', url="T.ME/LVBNET")],
-    [InlineKeyboardButton('✅ AGGIUNGI IL TUO CANALE✅', callback_data="t.me/LVBnetStaffbot")]
+    [InlineKeyboardButton('✅ AGGIUNGI IL TUO CANALE✅', url="t.me/LVBnetStaffbot")]
 ]
 
 
