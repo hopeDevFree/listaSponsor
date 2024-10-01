@@ -202,7 +202,7 @@ async def send_list_message():
                 cur.execute("INSERT INTO channels_message(username, id_message) values(%s, %s)",
                             (channel, sent_message.id))
 
-                await asyncio.sleep(10)
+                await asyncio.sleep(3)
 
             conn.commit()
 
@@ -263,8 +263,8 @@ async def handle_chat_member_update(client: Client, chat_member_updated: ChatMem
 
 
 scheduler = AsyncIOScheduler(timezone="Europe/Rome")
-scheduler.add_job(send_list_message, "cron", day=1, hour=18, minute=0)
-scheduler.add_job(delete_list_message, "cron", day=2, hour=18, minute=0)
+scheduler.add_job(send_list_message, "cron", day=1, hour=18, minute=15)
+scheduler.add_job(delete_list_message, "cron", day=2, hour=18, minute=15)
 scheduler.start()
 keep_alive()
 app.run()
