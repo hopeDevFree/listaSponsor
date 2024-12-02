@@ -220,10 +220,14 @@ async def delete_list_message():
             list_objs = cur.fetchall()
 
             for channel in list_objs:
-                await app.delete_messages(
-                    chat_id=channel[0],
-                    message_ids=channel[1])
-                cur.execute("DELETE FROM channels_message WHERE username=%s", (channel[0],))
+                try:
+                    await app.delete_messages(
+                        chat_id=channel[0],
+                        message_ids=channel[1])
+                    cur.execute("DELETE FROM channels_message WHERE username=%s", (channel[0],))
+
+                except Exception as e:
+                    print("Errore su canale: " + channel[0] + ", " + str(e))
 
             conn.commit()
 
@@ -263,8 +267,8 @@ async def handle_chat_member_update(client: Client, chat_member_updated: ChatMem
 
 
 scheduler = AsyncIOScheduler(timezone="Europe/Rome")
-scheduler.add_job(send_list_message, "cron", day=1, hour=18, minute=15)
-scheduler.add_job(delete_list_message, "cron", day=2, hour=18, minute=15)
+scheduler.add_job(send_list_message, "cron", day=1, hour=18, minute=0)
+scheduler.add_job(delete_list_message, "cron", day=2, hour=18, minute=0)
 scheduler.start()
 keep_alive()
 app.run()
