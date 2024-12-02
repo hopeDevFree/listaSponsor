@@ -3,7 +3,7 @@ from contextlib import closing
 
 import psycopg2
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.enums import ChatMemberStatus
 from pyrogram.errors import ChannelPrivate
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ChatMemberUpdated
@@ -265,10 +265,10 @@ async def handle_chat_member_update(client: Client, chat_member_updated: ChatMem
 
             conn.commit()
 
-
+app.start()
 scheduler = AsyncIOScheduler(timezone="Europe/Rome")
 scheduler.add_job(send_list_message, "cron", day=1, hour=18, minute=0)
 scheduler.add_job(delete_list_message, "cron", day=2, hour=18, minute=0)
 scheduler.start()
 keep_alive()
-app.run()
+idle()
