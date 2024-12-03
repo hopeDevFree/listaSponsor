@@ -277,8 +277,5 @@ async def main():
     keep_alive()
     await idle()
 
-    scheduler.shutdown()
-    await app.stop()
-
 
 asyncio.run(main())
