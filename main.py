@@ -266,16 +266,10 @@ async def handle_chat_member_update(client: Client, chat_member_updated: ChatMem
             conn.commit()
 
 
-scheduler = AsyncIOScheduler(timezone="Europe/Rome")
+loop = asyncio.get_event_loop()
+scheduler = AsyncIOScheduler(timezone="Europe/Rome", event_loop=loop)
 scheduler.add_job(send_list_message, "cron", day=1, hour=18, minute=0)
 scheduler.add_job(delete_list_message, "cron", day=2, hour=18, minute=0)
-
-
-async def main():
-    await app.start()
-    scheduler.start()
-    keep_alive()
-    await idle()
-
-
-asyncio.run(main())
+scheduler.start()
+keep_alive()
+app.run()
